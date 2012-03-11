@@ -83,45 +83,66 @@ function commerce_pagosonline_commerce_payment_method_info() {
 function commerce_pagosonline_settings_form($settings = NULL) {
   //module_load_include('inc', 'commerce_pagosonline');
   $form = array();
-  $form['pagosonline_uid'] = array(
+  $form['po_uid'] = array(
     '#title' => t('The number of user'),
     '#description' => t('The number of user in the system Pagosonline.net'),
     '#type' => 'textfield',
     '#size' => 12,
-    '#default_value' => isset($settings['pagosonline_uid']) ? $settings['pagosonline_uid'] : 2,
+    '#default_value' => isset($settings['po_uid']) ? $settings['po_uid'] : 2,
     '#required' => TRUE,
   );
-  $form['pagosonline_encryption_key'] = array(
+  $form['po_encryption_key'] = array(
     '#title' => t('Encryption key'),
     '#type' => 'textfield',
-    '#default_value' => isset($settings['pagosonline_encryption_key']) ? $settings['pagosonline_encryption_key'] : '1111111111111111
-',
+    '#default_value' => isset($settings['po_encryption_key']) ? $settings['po_encryption_key'] : '1111111111111111',
     '#size' => 50,
     '#required' => TRUE,
   );
-  $form['pagosonline_action_url'] = array(
+  $form['po_action_url'] = array(
     '#title' => t('Path Form Action'),
     '#type' => 'textfield',
     '#size' => 50,
-    '#default_value' => isset($settings['pagosonline_action_url']) ? $settings['pagosonline_action_url'] : PO_URL_SERVER,
+    '#default_value' => isset($settings['po_action_url']) ? $settings['po_action_url'] : PO_URL_SERVER,
     '#required' => TRUE,
   );
-  $form['pagosonline_action_url_test'] = array(
+  $form['po_action_url_test'] = array(
     '#title' => t('Test Path Form Action'),
     '#type' => 'textfield',
     '#size' => 50,
-    '#default_value' => isset($settings['pagosonline_action_url_test']) ? $settings['pagosonline_action_url_test'] : PO_URL_SERVER_TEST,
+    '#default_value' => isset($settings['po_action_url_test']) ? $settings['po_action_url_test'] : PO_URL_SERVER_TEST,
     '#required' => TRUE,
   );
-  $form['pagosonline_testing'] = array(
+
+  $items = commerce_tax_rates();
+  $options = array('None' => t('None'));
+  foreach ($items as $name => $item) {
+    $options[$name] = $item['title'];
+  }
+
+  $form['po_tax'] = array(
+    '#title' => t('Tax Rate'),
+    '#type' => 'select',
+    '#options' => $options,
+    '#default_value' => isset($settings['po_tax']) ? $settings['po_tax'] : '',
+  );
+  $form['po_alias'] = array(
+    '#title' => t('Alias'),
+    '#description' => t('Is concatenated with the order number, example: @example', array('@example' => '"' . @$settings['po_alias'] . '1"')),
+    '#type' => 'textfield',
+    '#size' => 20,
+    '#default_value' => isset($settings['po_alias']) ? $settings['po_alias'] : 'PO-',
+  );
+  $form['po_testing'] = array(
     '#title' => t('Test Enabled'),
     '#type' => 'select',
     '#options' => array(
       '0' => t('No'),
       '1' => t('Yes'),
     ),
-    '#default_value' => isset($settings['pagosonline_testing']) ? $settings['pagosonline_testing'] : 1,
+    '#required' => TRUE,
+    '#default_value' => isset($settings['po_testing']) ? $settings['po_testing'] : '',
   );
+
   return $form;
 }
 
@@ -129,52 +150,69 @@ function commerce_pagosonline_submit_form($payment_method, $pane_values, $checko
 
 }
 function commerce_pagosonline_redirect_form($form, &$form_state, $order, $payment_method) {
+  //dpm($payment_method);
+  $settings = $payment_method['settings'];
 
-  //$order_status = commerce_order_status_load($order->status);
+  if (!isset($settings['po_uid']) || empty($settings['po_uid'])) {
+    drupal_set_message(t('Pagos Online is not configured for use. No user Id has been specified.'), 'error');
+    return array();
+  }
 
   module_load_include('inc', 'commerce_pagosonline');
   //Cargar total de la orden
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
 
-  $currency_code = $wrapper->commerce_order_total->currency_code->value();
+  $settings['currency_code'] = $wrapper->commerce_order_total->currency_code->value();
 
-  $amount = number_format($wrapper->commerce_order_total->amount->value(), 2, '.', ''); //Format: 1000.00
+  $settings['amount'] = number_format($wrapper->commerce_order_total->amount->value(), 2, '.', ''); //Format: 1000.00
 
+  //Tax
+  $taxes = array(
+    'base_price' => 0,
+    $settings['po_tax'] => 0,
+  );
 
-  if (!isset($payment_method['settings']['pagosonline_uid']) || empty($payment_method['settings']['pagosonline_uid'])) {
-    drupal_set_message(t('Pagos Online is not configured for use. No user Id has been specified.'), 'error');
-    return array();
+  $components = $wrapper->commerce_order_total->data->value();
+  if (@$components['components']) {
+    foreach ($components['components'] as $key => $component) {
+      if ($component['name'] == 'base_price') {
+        $taxes['base_price'] = $component['price']['amount'];
+      }
+      elseif ($settings['po_tax'] == $component['price']['data']['tax_rate']['name']) {
+        $taxes[$settings['po_tax']] = $component['price']['amount'];
+      }
+    }
+    //dpm($settings);
+    dpm($components);
   }
-
-  $settings = $payment_method['settings'];
-
+  dpm($taxes);
+  //dpm($order);
   //$user_id = $payment_method['settings']['pagosonline_uid'];
 
   //$encryption_key = $payment_method['settings']['pagosonline_encryption_key'];
 
-  $sale_reference = commerce_pagosonline_get_reference($order);
-  $settings =
+  $settings['sale_reference'] = commerce_pagosonline_get_reference($settings['po_alias'], $order->order_id);
+  //$settings =
 
 
-  $currency_type = 'COP';
+  //$currency_type = 'COP';
 
 
   $signature = commerce_pagosonline_get_firm($settings);
 
-
   $url_page = commerce_pagosonline_get_url($order->order_id);
 
-  $form['#action'] = $settings['pagosonline_action_url'];
+  $form['#action'] = $settings['po_action_url'];
 
   $data = array(
-    'usuarioId' => $user_id,
+    'usuarioId' => $settings['po_uid'],
     'descripcion' => t('commerce virtual store purchase'),
-    'refVenta' => $sale_reference,
-    'valor' => $amount,
-    'baseDevolucionIva' => 0,
-    'iva' => 0,
+    'refVenta' => $settings['sale_reference'],
+    'valor' => $settings['amount'],
+    'baseDevolucionIva' => $taxes['base_price'],
+    'iva' => $taxes[$settings['po_tax']],
     'emailComprador' => $order->mail,
-    'moneda' => $currency_type,
+    'moneda' => $settings['currency_code'],
     'firma' => $signature,
     'url_confirmacion' => $url_page['confirmation'],
     'url_respuesta' => $url_page['response'],
@@ -184,7 +222,7 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
   //Mode Test
   if (@$payment_method['settings']['pagosonline_testing']) {
     $data['prueba'] = 1;
-    $form['#action'] = $payment_method['settings']['pagosonline_action_url_test'];
+    $form['#action'] = $settings['po_action_url_test'];
   }
 
   foreach ($data as $name => $value) {
