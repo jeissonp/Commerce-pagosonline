@@ -1,6 +1,6 @@
 <?php
 
-function pagosonline_response($order) {
+function commerce_pagosonline_response($order) {
   $param = pagosonline_get_param($_GET);
   if ($param['estado_pol'] == 5) { //Cancelada
     commerce_payment_redirect_pane_previous_page($order);
@@ -13,7 +13,7 @@ function pagosonline_response($order) {
   }
 }
 
-function pagosonline_confirmation($order) {
+function commerce_pagosonline_confirmation($order) {
   $param = pagosonline_get_param($_POST);
 
   $transaction = array();
@@ -30,7 +30,7 @@ function pagosonline_confirmation($order) {
   module_invoke_all('pagosonline_confirmation', $order, $transaction);
 }
 
-function pagosonline_save_transation($param, $order) {
+function commerce_pagosonline_save_transation($param, $order) {
   //dpm($param);
   $result = db_insert('pagosonline_log')
     ->fields(array(
@@ -108,7 +108,7 @@ function pagosonline_save_transation($param, $order) {
 /*
  * Load parameters
  **/
-function pagosonline_get_param($target) {
+function commerce_pagosonline_get_param($target) {
   $param = array();
   if (is_array($target)) {
     foreach ($target as $key => $value) {
@@ -118,7 +118,7 @@ function pagosonline_get_param($target) {
   return $param;
 }
 
-function pagosonline_response_code($key = NULL) {
+function commerce_pagosonline_response_code($key = NULL) {
   $code = array(
     1 => t('Transaction approved'), // 'Transacción aprobada',
     2 => t('Payment canceled by the user'), // 'Pago cancelado por el usuario',
@@ -156,7 +156,7 @@ function pagosonline_response_code($key = NULL) {
   return $key ? $code[$key] : $code;
 }
 
-function pagosonline_transaction_state($key = NULL) {
+function commerce_pagosonline_transaction_state($key = NULL) {
   $state = array(
     1 => t('Unopened'), // 'Sin abrir',
     2 => t('Opened'), // 'Abierta',
@@ -177,7 +177,7 @@ function pagosonline_transaction_state($key = NULL) {
   return $key ? $state[$key] : $state;
 }
 
-function pagosonline_language($key = NULL) {
+function commerce_pagosonline_language($key = NULL) {
   $languages = array(
     'fr' => t('French'),
     'en' => t('English'),
@@ -187,7 +187,7 @@ function pagosonline_language($key = NULL) {
   return $key ? $languages[$key] : $languages;
 }
 
-function pagosonline_currencies($key = NULL) {
+function commerce_pagosonline_currencies($key = NULL) {
   $currencies = array(
     'COP' => t('Colombian peso'),
     'EUR' => t('Euro'),
@@ -199,7 +199,7 @@ function pagosonline_currencies($key = NULL) {
   return $key ? $currencies[$key] : $currencies;
 }
 
-function pagosonline_state_transation($key = NULL) {
+function commerce_pagosonline_state_transation($key = NULL) {
   $state_transation = array(
     1 => t('Unopened'), // 'Sin abrir',
     2 => t('Opened'), // 'Abierta',
@@ -220,7 +220,7 @@ function pagosonline_state_transation($key = NULL) {
   return $key ? $state_transation[$key] : $state_transation;
 }
 
-function pagosonline_payment_form($key = NULL) {
+function commerce_pagosonline_payment_form($key = NULL) {
   $payment_form = array(
     10 => t('VISA'), // 'VISA',
     11 => t('MASTERCARD'), // 'MASTERCARD',
@@ -235,7 +235,7 @@ function pagosonline_payment_form($key = NULL) {
   return $key ? $payment_form[$key] : $payment_form;
 }
 
-function pagosonline_payment_type($key = NULL) {
+function commerce_pagosonline_payment_type($key = NULL) {
   $payment_type = array(
     2 => t('Credit Card'),
     3 => t('Verified by VISA'),
@@ -249,9 +249,9 @@ function pagosonline_payment_type($key = NULL) {
 /*
  * Digital signature of the transaction
  */
-function pagosonline_get_firm($encryption_key, $user_id, $sale_reference, $value, $currency_type, $state_transation = "") {
+function commerce_pagosonline_get_firm($settings, $encryption_key, $user_id, $sale_reference, $value, $currency_type, $state_transation = "") {
   if (empty($state_transation)) { //Format firm digital sending: "llaveEncripcion~usuario_id~ref_venta~valor~moneda"
-    return md5($encryption_key . '~' . $user_id . '~' . $sale_reference . '~' . $value . '~' . $currency_type);
+    return md5($settings['pagosonline_encryption_key'] . '~' . $settings['pagosonline_uid'] . '~' . $sale_reference . '~' . $value . '~' . $currency_type);
   }
   else { //Format firm digital sending: "llaveEncripcion~usuario_id~ref_venta~valor~moneda~estado_pol"
     return md5($encryption_key . '~' . $user_id . '~' . $sale_reference . '~' . $value . '~' . $currency_type .  '~' . $state_transation);
@@ -261,6 +261,26 @@ function pagosonline_get_firm($encryption_key, $user_id, $sale_reference, $value
 /*
  * Generate number reference unique
  */
-function pagosonline_get_reference($order) {
+function commerce_pagosonline_get_reference($order) {
   return 'ALIAS-' . $order->order_id;
+}
+
+function commerce_pagosonline_get_url($order_id) {
+  $token = uniqid();
+
+  $url_response = PO_URL_RESPONSE . '/' . $order_id . '/' . $$token . '/' . commerce_pagosonline_get_md5($order_id, $token, 'RESPONSE');
+  $url_confirmation = PO_URL_RESPONSE . '/' . $order_id . '/' . $$token . '/' . commerce_pagosonline_get_md5($order_id, $token);
+
+  return array(
+    'response' => url($url_response, array(
+      'absolute' => TRUE
+    ),
+    'confirmation' => url($url_confirmation, array(
+      'absolute' => TRUE
+    ),
+  );
+}
+
+function commerce_pagosonline_get_md5($oder_id, $token, $type = 'CONFIRMATION') {
+  return md5($order_id . '~' . $type . '~'. $token);
 }
