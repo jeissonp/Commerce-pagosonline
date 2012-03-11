@@ -1,0 +1,4 @@
+name = Pagosonline
+description = Implements Pagosonline payment services for use with Drupal Commerce.
+core = 7.x
+package = Payment Commerce
