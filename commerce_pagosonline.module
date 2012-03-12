@@ -119,7 +119,7 @@ function commerce_pagosonline_settings_form($settings = NULL) {
   );
 
   $items = commerce_tax_rates();
-  $options = array('None' => t('None'));
+  $options = array();
   foreach ($items as $name => $item) {
     $options[$name] = $item['title'];
   }
@@ -127,6 +127,8 @@ function commerce_pagosonline_settings_form($settings = NULL) {
   $form['po_tax'] = array(
     '#title' => t('Tax Rate'),
     '#type' => 'select',
+    '#size' => 5,
+    '#multiple' => TRUE,
     '#options' => $options,
     '#default_value' => isset($settings['po_tax']) ? $settings['po_tax'] : '',
   );
@@ -167,7 +169,7 @@ function commerce_pagosonline_submit_form($payment_method, $pane_values, $checko
 }
 function commerce_pagosonline_redirect_form($form, &$form_state, $order, $payment_method) {
   $settings = $payment_method['settings'];
-
+  dpm($settings);
   if (!isset($settings['po_uid']) || empty($settings['po_uid'])) {
     drupal_set_message(t('Pagos Online is not configured for use. No user Id has been specified.'), 'error');
     return array();
@@ -184,7 +186,7 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
   // Tax
   $taxes = array(
     'base_price' => 0,
-    $settings['po_tax'] => 0,
+    'total' => 0,
   );
 
   $components = $wrapper->commerce_order_total->data->value();
@@ -193,8 +195,8 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
       if ($component['name'] == 'base_price') {
         $taxes['base_price'] = $component['price']['amount'];
       }
-      elseif ($settings['po_tax'] == $component['price']['data']['tax_rate']['name']) {
-        $taxes[$settings['po_tax']] = $component['price']['amount'];
+      elseif (in_array($component['price']['data']['tax_rate']['name'], $settings['po_tax'])) {
+        $taxes['total'] += $component['price']['amount'];
       }
     }
   }
@@ -210,13 +212,15 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
     '@order_id' => $order->order_id,
   ));
 
+  dpm($taxes);
+
   $data = array(
     'usuarioId' => $settings['po_uid'],
     'descripcion' => $description,
     'refVenta' => $settings['sale_reference'],
     'valor' => $settings['amount'],
     'baseDevolucionIva' => $taxes['base_price'],
-    'iva' => $taxes[$settings['po_tax']],
+    'iva' => $taxes['total'],
     'emailComprador' => $order->mail,
     'moneda' => $settings['currency_code'],
     'firma' => $signature,
