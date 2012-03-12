@@ -150,7 +150,6 @@ function commerce_pagosonline_submit_form($payment_method, $pane_values, $checko
 
 }
 function commerce_pagosonline_redirect_form($form, &$form_state, $order, $payment_method) {
-  //dpm($payment_method);
   $settings = $payment_method['settings'];
 
   if (!isset($settings['po_uid']) || empty($settings['po_uid'])) {
@@ -159,7 +158,7 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
   }
 
   module_load_include('inc', 'commerce_pagosonline');
-  //Cargar total de la orden
+
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
 
   $settings['currency_code'] = $wrapper->commerce_order_total->currency_code->value();
@@ -182,21 +181,8 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
         $taxes[$settings['po_tax']] = $component['price']['amount'];
       }
     }
-    //dpm($settings);
-    dpm($components);
   }
-  dpm($taxes);
-  //dpm($order);
-  //$user_id = $payment_method['settings']['pagosonline_uid'];
-
-  //$encryption_key = $payment_method['settings']['pagosonline_encryption_key'];
-
   $settings['sale_reference'] = commerce_pagosonline_get_reference($settings['po_alias'], $order->order_id);
-  //$settings =
-
-
-  //$currency_type = 'COP';
-
 
   $signature = commerce_pagosonline_get_firm($settings);
 
