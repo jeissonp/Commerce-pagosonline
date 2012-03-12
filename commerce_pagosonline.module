@@ -1,20 +1,25 @@
 <?php
-define ('PO_URL_SERVER', 'https://gateway.pagosonline.net/apps/gateway/index.html');
-define ('PO_URL_SERVER_TEST', 'https://gateway2.pagosonline.net/apps/gateway/index.html');
+define('PO_URL_SERVER', 'https://gateway.pagosonline.net/apps/gateway/index.html');
+define('PO_URL_SERVER_TEST', 'https://gateway2.pagosonline.net/apps/gateway/index.html');
 
-define ('PO_URL_CONFIRMATION', 'admin/commerce/pagosonline/confirmation');
-define ('PO_URL_RESPONSE', 'admin/commerce/pagosonline/response');
+define('PO_URL_CONFIRMATION', 'admin/commerce/pagosonline/confirmation');
+define('PO_URL_RESPONSE', 'admin/commerce/pagosonline/response');
+define('PO_DESCRIPTION', 'commerce virtual store purchase order number @order_id');
 
-/*
+define('PO_UID', 2);
+define('PO_ENCRYPTION_KEY', '1111111111111111');
+define('PO_ALIAS', 'PO-');
+
+/**
  * Implements hook_permission().
  */
 function commerce_pagosonline_permission() {
   $perm = array(
     'pagosonline settings' => array(
-      'title' => 'Settings Pagos Online'
+      'title' => 'Settings Pagos Online',
     ),
     'pagosonline detail transaction' => array(
-      'title' => 'View Details Transaction'
+      'title' => 'View Details Transaction',
     ),
   );
   return $perm;
@@ -23,27 +28,21 @@ function commerce_pagosonline_permission() {
 /**
  * Implements hook_menu().
  */
-
 function commerce_pagosonline_menu() {
   $menu = array();
-
-  $menu['admin/commerce/pagosonline/settings'] = array(
-    'title' => t('Settings Pagosonline'),
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('commerce_pagosonline_settings_form'),
-    'access arguments' => array('pagosonline settings'),
-    'type' => MENU_CALLBACK,
-  );
-  $menu['admin/commerce/pagosonline/response/%/%/%'] = array(
+  $menu['admin/commerce/pagosonline/response/%order/%/%'] = array(
     'page callback' => 'commerce_pagosonline_response',
-    'page arguments' => array(2, 3, 4), //$order_id, $sale_reference, $option
-    'access arguments' => array('access content'),
+    // $order_id, $sale_reference, $option
+    'page arguments' => array(4),
+    'access callback' => array('commerce_pagosonline_access_response'),
+    'access arguments' => array(4, 5, 6),
     'type' => MENU_CALLBACK,
     'file' => 'commerce_pagosonline.inc',
   );
-  $menu['admin/commerce/pagosonline/confirmation/%/%/%'] = array(
+  $menu['admin/commerce/pagosonline/confirmation/%order/%/%'] = array(
     'page callback' => 'commerce_pagosonline_confirmation',
-    'page arguments' => array(2, 3, 4), //$order_id, $sale_reference, $option
+    // $order_id, $sale_reference, $option
+    'page arguments' => array(2, 3, 4),
     'access arguments' => array('access content'),
     'type' => MENU_CALLBACK,
     'file' => 'commerce_pagosonline.inc',
@@ -59,7 +58,13 @@ function commerce_pagosonline_menu() {
   );
   return $menu;
 }
-
+/**
+ * Access page response
+ */
+function commerce_pagosonline_access_response($order, $token, $option) {
+  $param = pagosonline_get_param($_GET);
+  return  $option == commerce_pagosonline_get_md5($order->order_id, $token, 'RESPONSE');
+}
 /**
  * Implements hook_commerce_payment_method_info().
  */
@@ -88,13 +93,13 @@ function commerce_pagosonline_settings_form($settings = NULL) {
     '#description' => t('The number of user in the system Pagosonline.net'),
     '#type' => 'textfield',
     '#size' => 12,
-    '#default_value' => isset($settings['po_uid']) ? $settings['po_uid'] : 2,
+    '#default_value' => isset($settings['po_uid']) ? $settings['po_uid'] : PO_UID,
     '#required' => TRUE,
   );
   $form['po_encryption_key'] = array(
     '#title' => t('Encryption key'),
     '#type' => 'textfield',
-    '#default_value' => isset($settings['po_encryption_key']) ? $settings['po_encryption_key'] : '1111111111111111',
+    '#default_value' => isset($settings['po_encryption_key']) ? $settings['po_encryption_key'] : PO_ENCRYPTION_KEY,
     '#size' => 50,
     '#required' => TRUE,
   );
@@ -130,7 +135,18 @@ function commerce_pagosonline_settings_form($settings = NULL) {
     '#description' => t('Is concatenated with the order number, example: @example', array('@example' => '"' . @$settings['po_alias'] . '1"')),
     '#type' => 'textfield',
     '#size' => 20,
-    '#default_value' => isset($settings['po_alias']) ? $settings['po_alias'] : 'PO-',
+    '#default_value' => isset($settings['po_alias']) ? $settings['po_alias'] : PO_ALIAS,
+  );
+
+  $description = isset($settings['po_description']) ? $settings['po_description'] : PO_DESCRIPTION;
+
+  $form['po_description'] = array(
+    '#title' => t('Description'),
+    '#description' => t('Pagosonline purchase description, use @order_id to obtain the order number'),
+    '#type' => 'textfield',
+    '#size' => 50,
+    '#default_value' => $description,
+    '#required' => TRUE,
   );
   $form['po_testing'] = array(
     '#title' => t('Test Enabled'),
@@ -162,10 +178,10 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
 
   $settings['currency_code'] = $wrapper->commerce_order_total->currency_code->value();
+  // Format: 1000.00
+  $settings['amount'] = number_format($wrapper->commerce_order_total->amount->value(), 2, '.', '');
 
-  $settings['amount'] = number_format($wrapper->commerce_order_total->amount->value(), 2, '.', ''); //Format: 1000.00
-
-  //Tax
+  // Tax
   $taxes = array(
     'base_price' => 0,
     $settings['po_tax'] => 0,
@@ -190,9 +206,13 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
 
   $form['#action'] = $settings['po_action_url'];
 
+  $description = t($settings['po_description'], array(
+    '@order_id' => $order->order_id,
+  ));
+
   $data = array(
     'usuarioId' => $settings['po_uid'],
-    'descripcion' => t('commerce virtual store purchase'),
+    'descripcion' => $description,
     'refVenta' => $settings['sale_reference'],
     'valor' => $settings['amount'],
     'baseDevolucionIva' => $taxes['base_price'],
@@ -204,9 +224,9 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
     'url_respuesta' => $url_page['response'],
     'extra1' => $payment_method['instance_id'],
   );
-
-  //Mode Test
-  if (@$payment_method['settings']['pagosonline_testing']) {
+  // Mode Test
+  if (@$settings['po_testing']) {
+    dpm('Entro');
     $data['prueba'] = 1;
     $form['#action'] = $settings['po_action_url_test'];
   }
@@ -214,7 +234,7 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
   foreach ($data as $name => $value) {
     $form[$name] = array(
       '#type' => 'hidden',
-      '#value' => $value
+      '#value' => $value,
     );
   }
 

@@ -246,41 +246,51 @@ function commerce_pagosonline_payment_type($key = NULL) {
   );
   return $key ? $payment_type[$key] : $payment_type;
 }
-/*
+/**
  * Digital signature of the transaction
  */
-function commerce_pagosonline_get_firm($settings, $encryption_key, $user_id, $sale_reference, $value, $currency_type, $state_transation = "") {
-  if (empty($state_transation)) { //Format firm digital sending: "llaveEncripcion~usuario_id~ref_venta~valor~moneda"
-    return md5($settings['pagosonline_encryption_key'] . '~' . $settings['pagosonline_uid'] . '~' . $sale_reference . '~' . $value . '~' . $currency_type);
+function commerce_pagosonline_get_firm($settings, $state_transation = "") {
+  $params = array(
+    $settings['po_encryption_key'],
+    $settings['po_uid'],
+    $settings['sale_reference'],
+    $settings['amount'],
+    $settings['currency_code'],
+  );
+  if (!empty($state_transation)) {
+    $params[] = $state_transation;
   }
-  else { //Format firm digital sending: "llaveEncripcion~usuario_id~ref_venta~valor~moneda~estado_pol"
-    return md5($encryption_key . '~' . $user_id . '~' . $sale_reference . '~' . $value . '~' . $currency_type .  '~' . $state_transation);
-  }
+  return md5(implode('~', $params));
 }
 
-/*
+/**
  * Generate number reference unique
  */
-function commerce_pagosonline_get_reference($order) {
-  return 'ALIAS-' . $order->order_id;
+function commerce_pagosonline_get_reference($alias, $order_id) {
+  return $alias . $order_id;
 }
-
+/**
+ * Generate url response and confirmation
+ */
 function commerce_pagosonline_get_url($order_id) {
   $token = uniqid();
 
-  $url_response = PO_URL_RESPONSE . '/' . $order_id . '/' . $$token . '/' . commerce_pagosonline_get_md5($order_id, $token, 'RESPONSE');
-  $url_confirmation = PO_URL_RESPONSE . '/' . $order_id . '/' . $$token . '/' . commerce_pagosonline_get_md5($order_id, $token);
+  $url_response = PO_URL_RESPONSE . '/' . $order_id . '/' . $token . '/' . commerce_pagosonline_get_md5($order_id, $token, 'RESPONSE');
+  $url_confirmation = PO_URL_RESPONSE . '/' . $order_id . '/' . $token . '/' . commerce_pagosonline_get_md5($order_id, $token);
 
   return array(
     'response' => url($url_response, array(
-      'absolute' => TRUE
-    ),
+      'absolute' => TRUE,
+    )),
     'confirmation' => url($url_confirmation, array(
-      'absolute' => TRUE
-    ),
+      'absolute' => TRUE,
+    )),
   );
 }
 
-function commerce_pagosonline_get_md5($oder_id, $token, $type = 'CONFIRMATION') {
+/**
+ * encrypted key
+ */
+function commerce_pagosonline_get_md5($order_id, $token, $type = 'CONFIRMATION') {
   return md5($order_id . '~' . $type . '~'. $token);
 }
