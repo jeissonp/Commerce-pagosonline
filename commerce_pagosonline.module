@@ -132,12 +132,13 @@ function commerce_pagosonline_settings_form($settings = NULL) {
     '#options' => $options,
     '#default_value' => isset($settings['po_tax']) ? $settings['po_tax'] : '',
   );
+  $po_alias = isset($settings['po_alias']) ? $settings['po_alias'] : PO_ALIAS;
   $form['po_alias'] = array(
     '#title' => t('Alias'),
-    '#description' => t('Is concatenated with the order number, example: @example', array('@example' => '"' . @$settings['po_alias'] . '1"')),
+    '#description' => t('Is concatenated with the order number, example: @example', array('@example' => '"' . $po_alias . '1"')),
     '#type' => 'textfield',
     '#size' => 20,
-    '#default_value' => isset($settings['po_alias']) ? $settings['po_alias'] : PO_ALIAS,
+    '#default_value' => $po_alias,
   );
 
   $description = isset($settings['po_description']) ? $settings['po_description'] : PO_DESCRIPTION;
