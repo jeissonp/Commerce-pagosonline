@@ -2,8 +2,8 @@
 define('PO_URL_SERVER', 'https://gateway.pagosonline.net/apps/gateway/index.html');
 define('PO_URL_SERVER_TEST', 'https://gateway2.pagosonline.net/apps/gateway/index.html');
 
-define('PO_URL_CONFIRMATION', 'admin/commerce/pagosonline/confirmation');
-define('PO_URL_RESPONSE', 'admin/commerce/pagosonline/response');
+define('PO_URL_CONFIRMATION', 'pagosonline/confirmation');
+define('PO_URL_RESPONSE', 'pagosonline/response');
 define('PO_DESCRIPTION', 'commerce virtual store purchase order number @order_id');
 
 define('PO_UID', 2);
@@ -30,7 +30,7 @@ function commerce_pagosonline_permission() {
  */
 function commerce_pagosonline_menu() {
   $menu = array();
-  $menu['admin/commerce/pagosonline/response/%order/%/%'] = array(
+  $menu['pagosonline/response/%order/%/%'] = array(
     'page callback' => 'commerce_pagosonline_response',
     // $order_id, $sale_reference, $option
     'page arguments' => array(4),
@@ -39,7 +39,7 @@ function commerce_pagosonline_menu() {
     'type' => MENU_CALLBACK,
     'file' => 'commerce_pagosonline.inc',
   );
-  $menu['admin/commerce/pagosonline/confirmation/%order/%/%'] = array(
+  $menu['pagosonline/confirmation/%order/%/%'] = array(
     'page callback' => 'commerce_pagosonline_confirmation',
     // $order_id, $sale_reference, $option
     'page arguments' => array(2, 3, 4),
@@ -47,7 +47,7 @@ function commerce_pagosonline_menu() {
     'type' => MENU_CALLBACK,
     'file' => 'commerce_pagosonline.inc',
   );
-  $menu['admin/commerce/pagosonline/transaction/view/%/%'] = array(
+  $menu['pagosonline/transaction/view/%/%'] = array(
     'page callback' => 'commerce_pagosonline_transaction_view',
     'page arguments' => array(3),
     'access callback' => TRUE,
