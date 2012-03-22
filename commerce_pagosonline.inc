@@ -22,7 +22,9 @@ function commerce_pagosonline_confirmation($order, $b, $c) {
   }
   else {
     $transaction = commerce_pagosonline_save_transation($param, $order);
-    commerce_payment_redirect_pane_next_page($order);
+    if ($transaction->status == COMMERCE_PAYMENT_STATUS_SUCCESS) {
+      commerce_payment_redirect_pane_next_page($order);
+    }
   }
   module_invoke_all('pagosonline_confirmation', $order, $transaction);
 }
@@ -33,9 +35,10 @@ function commerce_pagosonline_save_transation($param, $order) {
     ->fields(array(
     'order_id' => $order->order_id,
     'created' => REQUEST_TIME,
-    'state_transation' => $param['estado_pol'],
+    'reference_pagosonline' => $param['ref_pol'],
+    'state_transaction' => $param['estado_pol'],
     'value' => $param['valor'],
-    'response' => $param,
+    'response' => serialize($param),
     ))
     ->execute();
 
@@ -44,17 +47,24 @@ function commerce_pagosonline_save_transation($param, $order) {
   }
 
   $path_transation = 'pagosonline/transaction/view/' . $result . '/' . md5($result . '~' . 'VIEW-TRANSATION');
+
   $transaction = commerce_payment_transaction_new('pagosonline', $order->order_id);
 
   $transaction->payload[REQUEST_TIME] = $param;
 
   $message = array();
+  
   $transaction->remote_id = $param['transaccion_id'];
-  $transaction->remote_status = pagosonline_transaction_state($param['estado_pol']) . ' - ' . pagosonline_response_code($param['codigo_respuesta_pol']);
-  $message[] = ' - - - - - -  <b>METHOD ' . $method . '</b> - - - - - -';
-  $message[] = $param['estado_pol'] . ': ' . pagosonline_transaction_state($param['estado_pol']);
-  $message[] = $param['codigo_respuesta_pol'] . ': ' . pagosonline_response_code($param['codigo_respuesta_pol']);
+  
+  $transaction->remote_status = commerce_pagosonline_transaction_state($param['estado_pol']) . ' - ' . commerce_pagosonline_response_code($param['codigo_respuesta_pol']);
+
+  
+  //$message[] = ' - - - - - -  <b>METHOD ' . $method . '</b> - - - - - -';
+
+  $message[] = $param['estado_pol'] . ': ' . commerce_pagosonline_transaction_state($param['estado_pol']);
+  $message[] = $param['codigo_respuesta_pol'] . ': ' . commerce_pagosonline_response_code($param['codigo_respuesta_pol']);
   $message[] = l(t('View transaction'), $path_transation);
+
 
   switch ($param['estado_pol']) {
     case 4:
