@@ -39,7 +39,7 @@ function commerce_pagosonline_menu() {
     'type' => MENU_CALLBACK,
     'file' => 'commerce_pagosonline.inc',
   );
-  $menu['pagosonline/confirmation/%order/%/%'] = array(
+  $menu['pagosonline/confirmation/%commerce_order/%/%'] = array(
     'page callback' => 'commerce_pagosonline_confirmation',
     // $order_id, $sale_reference, $option
     'page arguments' => array(2, 3, 4),
@@ -201,6 +201,7 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
       }
     }
   }
+  dpm($order);
   $settings['sale_reference'] = commerce_pagosonline_get_reference($settings['po_alias'], $order->order_id);
 
   $signature = commerce_pagosonline_get_firm($settings);
@@ -220,7 +221,7 @@ function commerce_pagosonline_redirect_form($form, &$form_state, $order, $paymen
     'descripcion' => $description,
     'refVenta' => $settings['sale_reference'],
     'valor' => $settings['amount'],
-    'baseDevolucionIva' => $taxes['base_price'],
+    'baseDevolucionIva' => $taxes['total'] > 0 ? $taxes['base_price'] : 0,
     'iva' => $taxes['total'],
     'emailComprador' => $order->mail,
     'moneda' => $settings['currency_code'],

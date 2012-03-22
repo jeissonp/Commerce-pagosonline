@@ -20,10 +20,21 @@ function commerce_pagosonline_schema() {
         'type' => 'int',
         'length' => 11,
       ),
+      'state_transaction' => array(
+        'description' => 'State transaction',
+        'type' => 'int',
+        'lenght' => 11,
+      ),
       'reference_pagosonline' => array(
         'description' => 'The reference or transaction number',
         'type' => 'int',
         'length' => 12,
+      ),
+      'value' => array(
+        'description' => 'Amount transaction',
+        'type' => 'numeric',
+        'precision' => 12,
+        'scale' => 2,
       ),
       'response' => array(
         'description' => 'Response serialize',
@@ -43,4 +54,27 @@ function commerce_pagosonline_schema() {
  */
 function commerce_pagosonline_uninstall() {
   drupal_uninstall_schema('pagosonline_log');
+}
+
+/**
+ * Add field state transaction
+ */
+function commerce_pagosonline_update_7001() {
+  db_add_field('commerce_pagosonline', 'state_transaction', array(
+    'description' => 'State transaction',
+    'type' => 'int',
+    'lenght' => 11,    
+  ));
+}
+
+/**
+ * Add field Amount transaction
+ */
+function commerce_pagosonline_update_7002() {
+  db_add_field('commerce_pagosonline', 'value', array(
+    'description' => 'Amount transaction',
+    'type' => 'numeric',
+    'precision' => 12,
+    'scale' => 2,   
+  ));
 }

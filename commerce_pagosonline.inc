@@ -13,51 +13,30 @@ function commerce_pagosonline_response($order) {
   }
 }
 
-function commerce_pagosonline_confirmation($order) {
-  $param = pagosonline_get_param($_POST);
-
+function commerce_pagosonline_confirmation($order, $b, $c) {  
+  $param = commerce_pagosonline_get_param($_POST);  
   $transaction = array();
   variable_set('param_po', $param);
-
-  if ($param['estado_pol'] == 5) { //Cancelada
+  if ($param['estado_pol'] == 5) {
     commerce_payment_redirect_pane_previous_page($order);
   }
   else {
-    $transaction = pagosonline_save_transation($param, $order);
+    $transaction = commerce_pagosonline_save_transation($param, $order);
     commerce_payment_redirect_pane_next_page($order);
   }
-
   module_invoke_all('pagosonline_confirmation', $order, $transaction);
 }
 
 function commerce_pagosonline_save_transation($param, $order) {
   //dpm($param);
-  $result = db_insert('pagosonline_log')
+  $result = db_insert('commerce_pagosonline')
     ->fields(array(
     'order_id' => $order->order_id,
     'created' => REQUEST_TIME,
     'state_transation' => $param['estado_pol'],
-    'risk' => $param['riesgo'],
-    'code_response' => $param['codigo_respuesta_pol'],
-    'sale_reference' => $param['ref_venta'],
-    'reference_pagosonline' => $param['ref_pol'],
-    'signature' => $param['firma'],
-    'extra1' => $param['extra1'],
-    'extra2' => $param['extra2'],
-    'method_payment' => $param['medio_pago'],
-    'type_method_payment' => $param['tipo_medio_pago'],
-    'number_payment' => isset($param['cuotas']) ? $param['cuotas'] : 0,
     'value' => $param['valor'],
-    'tax' => $param['iva'],
-    'value_aditional' => $param['valorAdicional'],
-    'currency' => $param['moneda'],
-    'date_transation' => isset($param['fecha_transaccion']) ? $param['fecha_transaccion'] : '',
-    'authorization_code' => isset($param['codigo_autorizacion']) ? $param['codigo_autorizacion'] : '',
-    'cus' => $param['cus'],
-    'bank_pse' => $param['banco_pse'],
-    'email_buyer' => isset($param['email_comprador']) ? $param['email_comprador'] : '',
-    'varpo' => serialize($param),
-  ))
+    'response' => $param,
+    ))
     ->execute();
 
   if ($param['cus'] == 'null') {
